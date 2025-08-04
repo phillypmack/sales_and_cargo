@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel de Administração - Vasap</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar navbar-dark bg-dark">
+        <div class="container-fluid">
+            <span class="navbar-brand mb-0 h1">
+                <i class="fas fa-cog"></i> Painel de Administração
+            </span>
+            <a href="/" class="btn btn-outline-light">
+                <i class="fas fa-arrow-left"></i> Voltar para a Loja
+            </a>
+        </div>
+    </nav>
+
+    <div class="container-fluid mt-4">
+        <!-- Navegação em Abas -->
+        <ul class="nav nav-tabs" id="adminTab" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="pedidos-tab-btn" data-bs-toggle="tab" data-bs-target="#pedidos-tab-content" type="button" role="tab">Gestão de Pedidos</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="tabela-tab-btn" data-bs-toggle="tab" data-bs-target="#tabela-tab-content" type="button" role="tab">Tabela de Produtos</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="precos-tab-btn" data-bs-toggle="tab" data-bs-target="#precos-tab-content" type="button" role="tab">Ajuste de Preços</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="cadastro-prod-tab-btn" data-bs-toggle="tab" data-bs-target="#cadastro-prod-tab-content" type="button" role="tab">Cadastro de Produtos</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="cadastro-foto-tab-btn" data-bs-toggle="tab" data-bs-target="#cadastro-foto-tab-content" type="button" role="tab">Cadastro de Fotos</button>
+            </li>
+        </ul>
+
+        <!-- Conteúdo das Abas -->
+        <div class="tab-content" id="adminTabContent">
+
+            <!-- 1. Gestão de Pedidos -->
+            <div class="tab-pane fade show active p-3" id="pedidos-tab-content" role="tabpanel">
+                <div class="card">
+                    <div class="card-header"><h5>Gestão de Pedidos</h5></div>
+                    <div class="card-body">
+                        <button class="btn btn-info" onclick="loadAdminOrders()">Carregar Todos os Pedidos</button>
+                        <div id="admin-orders-list" class="mt-3"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. Tabela Completa de Produtos -->
+            <div class="tab-pane fade p-3" id="tabela-tab-content" role="tabpanel">
+                <div class="card">
+                    <div class="card-header"><h5>Tabela Completa de Produtos</h5></div>
+                    <div class="card-body">
+                        <div class="row mb-3">
+                            <div class="col-md-12">
+                                <input type="text" class="form-control" id="admin-all-items-search" placeholder="Filtrar tabela por ID, nome ou grupo...">
+                            </div>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <button class="btn btn-info" onclick="loadAllItemsTable()">
+                                <i class="fas fa-sync-alt"></i> Carregar / Atualizar Tabela
+                            </button>
+                            <!-- Botões de Importar/Exportar -->
+                            <div class="btn-group">
+                                <button class="btn btn-success" onclick="exportItems()">
+                                    <i class="fas fa-file-excel"></i> Exportar para XLSX
+                                </button>
+                                <button class="btn btn-warning" type="button" data-bs-toggle="collapse" data-bs-target="#import-section">
+                                    <i class="fas fa-file-upload"></i> Importar de XLSX
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Seção de Importação Colapsável -->
+                        <div class="collapse" id="import-section">
+                            <div class="card card-body bg-light">
+                                <p class="small text-muted">Selecione um arquivo .xlsx. O sistema irá atualizar os produtos existentes com base na coluna 'Item ID'. Inclua uma coluna 'Shape' ('box' ou 'cylinder').</p>
+                                <div class="input-group">
+                                    <input type="file" class="form-control" id="import-file-input" accept=".xlsx">
+                                    <button class="btn btn-primary" type="button" onclick="importItems()">Enviar Arquivo</button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div id="admin-all-items-container">
+                            <p class="text-muted">Clique em "Carregar / Atualizar Tabela" para ver os dados.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3. Ajuste de Preços -->
+            <div class="tab-pane fade p-3" id="precos-tab-content" role="tabpanel">
+                <!-- Ajuste Global -->
+                <div class="card mb-4">
+                    <div class="card-header"><h5>Ajuste de Preços Global</h5></div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-4"><select class="form-select" id="price-adjustment-type"><option value="percentage">Percentual (%)</option><option value="fixed">Valor Fixo ($)</option></select></div>
+                            <div class="col-md-4"><input type="number" class="form-control" id="price-adjustment-value" placeholder="Valor do ajuste ($)" step="0.01"></div>
+                            <div class="col-md-4"><button class="btn btn-warning" onclick="adjustPrices()">Aplicar Ajuste</button></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Ajuste por Cliente -->
+                <div class="card">
+                    <div class="card-header"><h5>Ajuste de Preço por Cliente</h5></div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-5">
+                                <label class="form-label">Selecione o Cliente</label>
+                                <select class="form-select" id="client-select"><option selected disabled>Carregando clientes...</option></select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Tipo de Ajuste</label>
+                                <select class="form-select" id="client-price-adjustment-type"><option value="percentage">Percentual (%)</option><option value="fixed">Valor Fixo ($)</option></select>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">Valor</label>
+                                <input type="number" class="form-control" id="client-price-adjustment-value" placeholder="Ex: -10 ou 5">
+                            </div>
+                            <div class="col-md-2 d-flex align-items-end">
+                                <button class="btn btn-success w-100" onclick="adjustClientPrices()">Aplicar</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 4. Cadastro de Produtos -->
+            <div class="tab-pane fade p-3" id="cadastro-prod-tab-content" role="tabpanel">
+                <div class="card">
+                    <div class="card-header"><h5>Cadastro de Produtos</h5></div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h6>Cadastro Individual</h6>
+                                <form id="individual-product-form">
+                                    <div class="mb-2">
+                                        <label class="form-label d-block">Tipo de Item</label>
+                                        <div class="form-check form-check-inline">
+                                            <input class="form-check-input" type="radio" name="item-shape" id="item-shape-box" value="box" checked>
+                                            <label class="form-check-label" for="item-shape-box">Caixa (Box)</label>
+                                        </div>
+                                        <div class="form-check form-check-inline">
+                                            <input class="form-check-input" type="radio" name="item-shape" id="item-shape-cylinder" value="cylinder">
+                                            <label class="form-check-label" for="item-shape-cylinder">Cilindro (Cylinder)</label>
+                                        </div>
+                                    </div>
+                                    <div class="mb-2"><input type="text" class="form-control form-control-sm" id="product-name" placeholder="Nome do Produto" required></div>
+                                    <div class="mb-2"><input type="text" class="form-control form-control-sm" id="product-name" placeholder="Nome do Produto" required></div>
+                                    <div class="mb-2"><input type="text" class="form-control form-control-sm" id="product-category" placeholder="Categoria" required></div>
+                                    <div class="mb-2"><input type="number" class="form-control form-control-sm" id="product-price" placeholder="Preço" step="0.01" required></div>
+                                    <div class="mb-2"><input type="number" class="form-control form-control-sm" id="product-stock" placeholder="Estoque" required></div>
+                                    <div class="mb-2"><textarea class="form-control form-control-sm" id="product-description" placeholder="Descrição" rows="2"></textarea></div>
+                                    <div class="row">
+                                        <div class="col-6"><input type="number" class="form-control form-control-sm" id="product-weight" placeholder="Peso (kg)" step="0.1"></div>
+                                        <div class="col-6"><input type="number" class="form-control form-control-sm" id="product-height" placeholder="Altura (cm)"></div>
+                                    </div>
+                                    <div class="row mt-2">
+                                        <div class="col-6"><input type="number" class="form-control form-control-sm" id="product-width" placeholder="Largura (cm)"></div>
+                                        <div class="col-6"><input type="number" class="form-control form-control-sm" id="product-length" placeholder="Comprimento (cm)"></div>
+                                    </div>
+                                    <button type="button" class="btn btn-success btn-sm mt-2" onclick="registerProduct()">Cadastrar Produto</button>
+                                </form>
+                            </div>
+                            <div class="col-md-6">
+                                <h6>Cadastro em Massa (CSV)</h6>
+                                <textarea class="form-control" id="bulk-products-csv" rows="8" placeholder="Name,Shape,Category,Description,Sale Price,Stock,Weight,Height,Width,Length
+        Produto 1,box,Categoria A,Descrição,29.99,10,1.5,20,15,25"></textarea>
+                                <button type="button" class="btn btn-primary btn-sm mt-2" onclick="registerProductsBulk()">Cadastrar em Massa</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 5. Cadastro de Fotos -->
+            <div class="tab-pane fade p-3" id="cadastro-foto-tab-content" role="tabpanel">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5>Cadastro de Fotos</h5>
+                        <button class="btn btn-link text-secondary btn-sm" onclick="cleanupBrokenPhotos()"><i class="fas fa-broom"></i> Limpar Links Inválidos</button>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h6>Cadastro Individual de Foto</h6>
+                                <form id="individual-photo-form">
+                                    <div class="mb-2"><input type="number" class="form-control form-control-sm" id="photo-item-id" placeholder="ID do Produto" required></div>
+                                    <div class="mb-2"><input type="url" class="form-control form-control-sm" id="photo-url" placeholder="URL da Foto" required></div>
+                                    <div class="mb-2"><input type="text" class="form-control form-control-sm" id="photo-description" placeholder="Descrição da Foto"></div>
+                                    <div class="mb-2">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="photo-is-primary">
+                                            <label class="form-check-label" for="photo-is-primary">Foto Principal</label>
+                                        </div>
+                                    </div>
+                                    <button type="button" class="btn btn-success btn-sm" onclick="registerPhoto()">Cadastrar Foto</button>
+                                </form>
+                            </div>
+                            <div class="col-md-6">
+                                <h6>Cadastro em Massa de Fotos (CSV)</h6>
+                                <textarea class="form-control" id="bulk-photos-csv" rows="6" placeholder="Item ID,Photo URL,Description,Is Primary
+        1,https://exemplo.com/foto1.jpg,Foto frontal,true
+        1,https://exemplo.com/foto2.jpg,Foto lateral,false"></textarea>
+                                <button type="button" class="btn btn-primary btn-sm mt-2" onclick="registerPhotosBulk()">Cadastrar Fotos em Massa</button>
+                            </div>
+                        </div>
+                        <div class="mt-4 pt-3 border-top">
+                            <h6>Gerenciar Fotos de Produto</h6>
+                            <div class="row">
+                                <div class="col-md-6"><input type="number" class="form-control form-control-sm" id="photo-search-id" placeholder="ID do Produto"></div>
+                                <div class="col-md-6"><button type="button" class="btn btn-info btn-sm" onclick="searchPhotos()">Buscar Fotos</button></div>
+                            </div>
+                            <div id="product-photos-list" class="mt-3"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Importante: Incluir o app.js para que as funções funcionem -->
+    <script src="app.js"></script>
+</body>
+</html>

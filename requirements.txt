@@ -1,0 +1,12 @@
+flask
+flask_cors
+pymongo
+pandas
+openpyxl
+PyJWT
+Werkzeug
+gunicorn
+requests
+dotenv
+pymongo
+sqlalchemy

@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Otimizador de Cargas - Vasap</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .stats-card { background: white; border-radius: 8px; padding: 15px; margin: 10px 0; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .btn-optimize { background-color: #8BC34A; border: none; color: white; padding: 12px 24px; border-radius: 6px; font-weight: bold; }
+        .btn-optimize:hover { background-color: #7CB342; color: white; }
+        #viewport-placeholder { width: 100%; min-height: 500px; background-color: #e0e0e0; border: 1px solid #ccc; position: relative; }
+        #item-tooltip { position: absolute; display: none; padding: 8px; background: rgba(0, 0, 0, 0.8); color: white; border-radius: 4px; pointer-events: none; font-size: 12px; z-index: 100; }
+    </style>
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.165.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.165.0/examples/jsm/"
+            }
+        }
+    </script>
+</head>
+<body>
+    <div class="container-fluid">
+        <nav class="navbar navbar-light bg-light mb-4">
+            <div class="container-fluid">
+                <span class="navbar-brand"><i class="fas fa-truck"></i> Otimizador de Cargas - Vasap</span>
+                <button class="btn btn-outline-secondary" onclick="window.close()"><i class="fas fa-times"></i> Fechar</button>
+            </div>
+        </nav>
+        <div class="row">
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header"><h5><i class="fas fa-box"></i> Configurações</h5></div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label class="form-label">Selecionar Pedido</label>
+                            <select class="form-select" id="order-select"><option value="">Carregando...</option></select>
+                        </div>
+                        <div id="order-details" class="d-none"><h6>Detalhes do Pedido:</h6><div id="order-info"></div></div>
+                        <hr>
+                        <h6>Configurações do Container:</h6>
+                        <div class="mb-3">
+                            <label for="container-type-select" class="form-label">Tipo de Container</label>
+                            <select class="form-select" id="container-type-select"><option>Carregando...</option></select>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label">Largura (cm):</label>
+                            <input type="number" class="form-control" id="container-width" value="230">
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label">Altura (cm):</label>
+                            <input type="number" class="form-control" id="container-height" value="230">
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label">Profundidade (cm):</label>
+                            <input type="number" class="form-control" id="container-depth" value="1200">
+                        </div>
+                        <button class="btn btn-optimize w-100 mt-3" id="optimizeLoadButton"><i class="fas fa-magic"></i> Otimizar Carga</button>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header"><h5><i class="fas fa-chart-bar"></i> Visualização 3D e Relatório</h5></div>
+                    <div class="card-body">
+                        <div id="viewport-placeholder"></div>
+                        <div id="item-tooltip"></div>
+                        <div id="details-panel" class="mt-3">
+                            <h2>Detalhes e Relatórios</h2>
+                            <p>A visualização 3D e o resumo do empacotamento aparecerão aqui. Selecione um pedido e clique em "Otimizar Carga".</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        // --- VARIÁVEIS GLOBAIS ---
+        let orders = [], containerTypes = [], selectedOrder = null;
+        const authToken = localStorage.getItem('vasap_auth_token');
+        const EPSILON_PACK = 0.0001;
+
+        // Variáveis 3D
+        let scene, camera, renderer, controls;
+        let containerMeshes = [];
+        const packedItemMeshes = [];
+        const packedItemEdgeMeshes = [];
+        let raycaster, mouse, itemTooltipElement;
+        let currentlyHoveredInstanceId = null;
+        let currentlyHoveredOriginalId = null;
+
+        // --- FUNÇÕES DE INICIALIZAÇÃO E DADOS (sem alterações) ---
+        async function loadInitialData() {
+            if (!authToken) { alert('Autenticação não encontrada.'); return; }
+            try {
+                const [ordersResponse, containersResponse] = await Promise.all([
+                    fetch('/api/pedidos/', { headers: { 'Authorization': `Bearer ${authToken}` } }),
+                    fetch('/cargo-optimizer/api/containers')
+                ]);
+                if (!ordersResponse.ok || !containersResponse.ok) throw new Error('Falha ao carregar dados.');
+                orders = await ordersResponse.json();
+                containerTypes = await containersResponse.json();
+                populateOrderSelect();
+                populateContainerSelect();
+                const urlParams = new URLSearchParams(window.location.search);
+                const orderToSelect = urlParams.get('order');
+                if (orderToSelect) {
+                    document.getElementById('order-select').value = orderToSelect;
+                    showOrderDetails(orderToSelect);
+                }
+            } catch (error) { console.error('Erro ao carregar dados:', error); }
+        }
+        function populateOrderSelect() {
+            const select = document.getElementById('order-select');
+            select.innerHTML = '<option value="">Selecione um pedido...</option>';
+            orders.forEach(order => {
+                const option = document.createElement('option');
+                option.value = order.Order;
+                option.textContent = `Pedido #${order.Order} - Cliente: ${order.Client}`;
+                select.appendChild(option);
+            });
+        }
+        function populateContainerSelect() {
+            const select = document.getElementById('container-type-select');
+            select.innerHTML = '';
+            containerTypes.forEach(container => {
+                const option = document.createElement('option');
+                option.value = container.name;
+                option.textContent = container.name;
+                select.appendChild(option);
+            });
+            handleContainerChange();
+        }
+        function handleContainerChange() {
+            const selectedName = document.getElementById('container-type-select').value;
+            const selectedContainer = containerTypes.find(c => c.name === selectedName);
+            const widthInput = document.getElementById('container-width');
+            const heightInput = document.getElementById('container-height');
+            const depthInput = document.getElementById('container-depth');
+            if (!selectedContainer) return;
+            const isCustom = selectedContainer.name === "Custom";
+            widthInput.disabled = !isCustom;
+            heightInput.disabled = !isCustom;
+            depthInput.disabled = !isCustom;
+            if (!isCustom) {
+                widthInput.value = Math.round(selectedContainer.width * 100);
+                heightInput.value = Math.round(selectedContainer.height * 100);
+                depthInput.value = Math.round(selectedContainer.length * 100);
+            }
+            updateContainerVisual();
+        }
+        function showOrderDetails(orderNumber) {
+            selectedOrder = orders.find(order => order.Order == orderNumber);
+            if (!selectedOrder) return;
+            const orderDetails = document.getElementById('order-details');
+            const orderInfo = document.getElementById('order-info');
+            orderInfo.innerHTML = `<p><strong>Pedido:</strong> #${selectedOrder.Order}</p><p><strong>Peso Total:</strong> ${(selectedOrder['Total weight Kg'] || 0).toFixed(2)} kg</p>`;
+            orderDetails.classList.remove('d-none');
+        }
+
+        // --- LÓGICA 3D E DE EMPACOTAMENTO (COM CORREÇÕES) ---
+
+        function initThreeScene() {
+            const viewport = document.getElementById('viewport-placeholder');
+            viewport.innerHTML = '';
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0xdedede);
+            camera = new THREE.PerspectiveCamera(75, viewport.clientWidth / viewport.clientHeight, 0.1, 1000);
+            renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+            renderer.setSize(viewport.clientWidth, viewport.clientHeight);
+            viewport.appendChild(renderer.domElement);
+            scene.add(new THREE.AmbientLight(0xffffff, 0.7), new THREE.DirectionalLight(0xffffff, 0.9));
+            controls = new OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            raycaster = new THREE.Raycaster();
+            mouse = new THREE.Vector2();
+            itemTooltipElement = document.getElementById('item-tooltip');
+            renderer.domElement.addEventListener('mousemove', onDocumentMouseMove, false);
+            renderer.domElement.addEventListener('mouseleave', onDocumentMouseLeave, false);
+            window.addEventListener('resize', onWindowResize, false);
+            updateContainerVisual();
+            animate();
+        }
+
+        function animate() { requestAnimationFrame(animate); controls.update(); renderer.render(scene, camera); }
+        function onWindowResize() {
+            const viewport = document.getElementById('viewport-placeholder');
+            camera.aspect = viewport.clientWidth / viewport.clientHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(viewport.clientWidth, viewport.clientHeight);
+        }
+
+        function updateContainerVisual() {
+            containerMeshes.forEach(mesh => scene.remove(mesh));
+            containerMeshes = [];
+            const cL = parseFloat(document.getElementById('container-depth').value) / 100;
+            const cW = parseFloat(document.getElementById('container-width').value) / 100;
+            const cH = parseFloat(document.getElementById('container-height').value) / 100;
+            if (isNaN(cL) || isNaN(cW) || isNaN(cH)) return;
+            const geometry = new THREE.BoxGeometry(cL, cH, cW);
+            const edges = new THREE.EdgesGeometry(geometry);
+            const mesh = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0x333333 }));
+            mesh.position.set(0, cH / 2, 0);
+            scene.add(mesh);
+            containerMeshes.push(mesh);
+            const maxSize = Math.max(cL, cW, cH);
+            camera.position.set(0, cH / 2 + maxSize * 0.6, maxSize * 1.2);
+            camera.lookAt(0, cH / 2, 0);
+            controls.target.set(0, cH / 2, 0);
+        }
+
+        function clearPackedItemsFromScene() {
+            packedItemMeshes.forEach(m => scene.remove(m));
+            packedItemMeshes.length = 0;
+            packedItemEdgeMeshes.forEach(m => scene.remove(m));
+            packedItemEdgeMeshes.length = 0;
+        }
+
+        const tempBox = new THREE.Box3(), tempVector = new THREE.Vector3(), tempMesh = new THREE.Mesh();
+        function getEffectiveDimensions(item, rot) {
+            let geometry;
+            if (item.shape === 'cylinder') {
+                geometry = new THREE.CylinderGeometry(item.width / 2, item.width / 2, item.height, 16);
+            } else {
+                geometry = new THREE.BoxGeometry(item.length, item.height, item.width);
+            }
+            if (tempMesh.geometry) tempMesh.geometry.dispose();
+            tempMesh.geometry = geometry;
+            tempMesh.rotation.set(rot.x, rot.y, rot.z);
+            tempMesh.updateMatrixWorld(true);
+            tempBox.setFromObject(tempMesh);
+            tempBox.getSize(tempVector);
+            return { L: tempVector.x, H: tempVector.y, W: tempVector.z };
+        }
+
+        function checkPlacementValidity(item, effL, effW, effH, targetX, targetY, targetZ, cL, cW, cH, existingItems) {
+            const newMinX = targetX, newMaxX = targetX + effL;
+            const newMinY = targetY, newMaxY = targetY + effH;
+            const newMinZ = targetZ, newMaxZ = targetZ + effW;
+            if (newMaxX > cL + EPSILON_PACK || newMaxY > cH + EPSILON_PACK || newMaxZ > cW + EPSILON_PACK) return false;
+            for (const ex of existingItems) {
+                const exMinX = ex.meshPosition.x - ex.effectiveLength / 2 + cL / 2;
+                const exMaxX = exMinX + ex.effectiveLength;
+                const exMinY = ex.meshPosition.y - ex.effectiveHeight / 2;
+                const exMaxY = exMinY + ex.effectiveHeight;
+                const exMinZ = ex.meshPosition.z - ex.effectiveWidth / 2 + cW / 2;
+                const exMaxZ = exMinZ + ex.effectiveWidth;
+                if ((newMinX < exMaxX - EPSILON_PACK) && (newMaxX > exMinX + EPSILON_PACK) &&
+                    (newMinY < exMaxY - EPSILON_PACK) && (newMaxY > exMinY + EPSILON_PACK) &&
+                    (newMinZ < exMaxZ - EPSILON_PACK) && (newMaxZ > exMinZ + EPSILON_PACK)) return false;
+            }
+            if (newMinY > EPSILON_PACK) {
+                let isSupported = false;
+                for (const sup of existingItems) {
+                    const supMaxY = (sup.meshPosition.y - sup.effectiveHeight / 2) + sup.effectiveHeight;
+                    if (Math.abs(newMinY - supMaxY) < EPSILON_PACK) {
+                        const supMinX = sup.meshPosition.x - sup.effectiveLength / 2 + cL / 2;
+                        const supMaxX = supMinX + sup.effectiveLength;
+                        const supMinZ = sup.meshPosition.z - sup.effectiveWidth / 2 + cW / 2;
+                        const supMaxZ = supMinZ + sup.effectiveWidth;
+                        if ((newMinX < supMaxX - EPSILON_PACK) && (newMaxX > supMinX + EPSILON_PACK) &&
+                            (newMinZ < supMaxZ - EPSILON_PACK) && (newMaxZ > supMinZ + EPSILON_PACK)) {
+                            isSupported = true;
+                            break;
+                        }
+                    }
+                }
+                if (!isSupported) return false;
+            }
+            return true;
+        }
+
+        function placeAndRecordItem(item, baseX, baseY, baseZ, cL, cW) {
+            let geometry;
+            if (item.shape === 'cylinder') {
+                geometry = new THREE.CylinderGeometry(item.width / 2, item.width / 2, item.height, 32);
+            } else {
+                geometry = new THREE.BoxGeometry(item.length, item.height, item.width);
+            }
+            const mesh = new THREE.Mesh(
+                geometry,
+                new THREE.MeshStandardMaterial({ color: item.color, transparent: true, opacity: 0.9 })
+            );
+            mesh.rotation.set(item.appliedRotationAngles.x, item.appliedRotationAngles.y, item.appliedRotationAngles.z);
+            mesh.position.set(
+                (baseX + item.effectiveLength / 2) - cL / 2,
+                baseY + item.effectiveHeight / 2,
+                (baseZ + item.effectiveWidth / 2) - cW / 2
+            );
+            mesh.userData.item = item;
+            scene.add(mesh);
+            packedItemMeshes.push(mesh);
+            item.placed = true;
+            item.meshPosition = mesh.position.clone();
+            if (item.shape === 'box') {
+                const edges = new THREE.LineSegments(
+                    new THREE.EdgesGeometry(mesh.geometry),
+                    new THREE.LineBasicMaterial({ color: 0x000000, transparent: true, opacity: 1.0 })
+                );
+                edges.position.copy(mesh.position);
+                edges.rotation.copy(mesh.rotation);
+                edges.userData = { parentInstanceId: item.instanceId, parentOriginalId: item.id };
+                scene.add(edges);
+                packedItemEdgeMeshes.push(edges);
+            }
+        }
+
+        function generateOrientationsToTry(item) {
+            const orientations = [];
+            const R = Math.PI / 2;
+            const potentialRotationsSet = new Set();
+            const addOrientation = (x, y, z) => {
+                const key = `${parseFloat(x.toFixed(4))}_${parseFloat(y.toFixed(4))}_${parseFloat(z.toFixed(4))}`;
+                if (!potentialRotationsSet.has(key)) {
+                    potentialRotationsSet.add(key);
+                    orientations.push({ x, y, z });
+                }
+            };
+            addOrientation(0, 0, 0);
+            if (item.shape === 'box') {
+                addOrientation(R, 0, 0); addOrientation(0, R, 0); addOrientation(0, 0, R);
+                addOrientation(R, R, 0); addOrientation(R, 0, R); addOrientation(0, R, R);
+            } else {
+                addOrientation(R, 0, 0); addOrientation(0, 0, R);
+            }
+            return orientations;
+        }
+
+        // *** INÍCIO DA LÓGICA DE EMPACOTAMENTO CORRIGIDA ***
+        async function packItemsFFDAlgorithm(cL, cW, cH, allItemsToPack) {
+            const itemsSorted = [...allItemsToPack].sort((a, b) => (b.length * b.width * b.height) - (a.length * a.width * a.height));
+            const placedItems = [];
+            const unplacedReport = [];
+
+            for (const item of itemsSorted) {
+                if (item.placed) continue;
+                let isPlaced = false;
+                const orientations = generateOrientationsToTry(item);
+
+                for (const rot of orientations) {
+                    const { L, W, H } = getEffectiveDimensions(item, rot);
+                    const itemToPlaceAttempt = { ...item, effectiveLength: L, effectiveWidth: W, effectiveHeight: H, appliedRotationAngles: rot };
+
+                    const anchorPoints = [{ x: 0, y: 0, z: 0 }];
+                    placedItems.forEach(p => {
+                        const pBaseX = p.meshPosition.x - p.effectiveLength / 2 + cL / 2;
+                        const pBaseY = p.meshPosition.y - p.effectiveHeight / 2;
+                        const pBaseZ = p.meshPosition.z - p.effectiveWidth / 2 + cW / 2;
+                        anchorPoints.push({ x: pBaseX, y: pBaseY + p.effectiveHeight, z: pBaseZ });
+                        anchorPoints.push({ x: pBaseX + p.effectiveLength, y: pBaseY, z: pBaseZ });
+                        anchorPoints.push({ x: pBaseX, y: pBaseY, z: pBaseZ + p.effectiveWidth });
+                    });
+
+                    // --- INÍCIO DA ALTERAÇÃO CRÍTICA ---
+                    // Ordena os pontos para forçar o empilhamento em colunas
+                    anchorPoints.sort((a, b) => {
+                        if (Math.abs(a.x - b.x) > EPSILON_PACK) return a.x - b.x; // 1. Fundo para a Frente
+                        if (Math.abs(a.z - b.z) > EPSILON_PACK) return a.z - b.z; // 2. Esquerda para a Direita
+                        return a.y - b.y;                                        // 3. Chão para o Teto
+                    });
+                    // --- FIM DA ALTERAÇÃO CRÍTICA ---
+
+                    for (const anchor of anchorPoints) {
+                        if (checkPlacementValidity(itemToPlaceAttempt, L, W, H, anchor.x, anchor.y, anchor.z, cL, cW, cH, placedItems)) {
+                            Object.assign(item, itemToPlaceAttempt);
+                            placeAndRecordItem(item, anchor.x, anchor.y, anchor.z, cL, cW);
+                            placedItems.push(item);
+                            isPlaced = true;
+                            await new Promise(r => setTimeout(r, 0));
+                            break;
+                        }
+                    }
+                    if (isPlaced) break;
+                }
+                if (!isPlaced) {
+                    unplacedReport.push({ itemName: item.name, quantity: 1, reason: 'No suitable space/orientation.' });
+                }
+            }
+            return { packedItemsList: placedItems, unplacedReport };
+        }
+        // *** FIM DA LÓGICA DE EMPACOTAMENTO CORRIGIDA ***
+
+        function onDocumentMouseMove(event) {
+            // A primeira parte da função permanece a mesma
+            const canvasBounds = renderer.domElement.getBoundingClientRect();
+            mouse.x = ((event.clientX - canvasBounds.left) / canvasBounds.width) * 2 - 1;
+            mouse.y = -((event.clientY - canvasBounds.top) / canvasBounds.height) * 2 + 1;
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(packedItemMeshes);
+
+            if (intersects.length > 0) {
+                const itemData = intersects[0].object.userData.item;
+                if (itemData.instanceId !== currentlyHoveredInstanceId) {
+                    currentlyHoveredInstanceId = itemData.instanceId;
+                    currentlyHoveredOriginalId = itemData.id;
+                    packedItemMeshes.forEach(m => m.material.opacity = m.userData.item.id === currentlyHoveredOriginalId ? 1.0 : 0.15);
+                    packedItemEdgeMeshes.forEach(e => e.material.opacity = e.userData.parentOriginalId === currentlyHoveredOriginalId ? 1.0 : 0.1);
+                }
+                itemTooltipElement.innerHTML = `${itemData.name}<br>Dims: ${itemData.length.toFixed(2)}x${itemData.width.toFixed(2)}x${itemData.height.toFixed(2)}m`;
+                
+                // --- INÍCIO DA CORREÇÃO ---
+                // Usamos pageX e pageY para garantir que o tooltip siga o mouse
+                // mesmo se a página tiver sido rolada.
+                itemTooltipElement.style.left = `${event.pageX + 0}px`;
+                itemTooltipElement.style.top = `${event.pageY + 0}px`;
+                // --- FIM DA CORREÇÃO ---
+
+                itemTooltipElement.style.display = 'block';
+            } else {
+                onDocumentMouseLeave();
+            }
+        }
+
+        function onDocumentMouseLeave() {
+            if (currentlyHoveredInstanceId) {
+                packedItemMeshes.forEach(m => m.material.opacity = 0.9);
+                packedItemEdgeMeshes.forEach(e => e.material.opacity = 1.0);
+                currentlyHoveredInstanceId = null;
+                currentlyHoveredOriginalId = null;
+            }
+            itemTooltipElement.style.display = 'none';
+        }
+
+        async function optimizeCargo() {
+            if (!selectedOrder) { alert('Por favor, selecione um pedido.'); return; }
+            const optimizeButton = document.getElementById('optimizeLoadButton');
+            optimizeButton.disabled = true;
+            optimizeButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Otimizando...';
+            
+            const detailsPanel = document.getElementById('details-panel');
+            detailsPanel.innerHTML = '<h2>Detalhes e Relatórios</h2><p>Iniciando empacotamento 3D...</p>';
+            clearPackedItemsFromScene();
+            updateContainerVisual();
+
+            const cL = parseFloat(document.getElementById('container-depth').value) / 100;
+            const cW = parseFloat(document.getElementById('container-width').value) / 100;
+            const cH = parseFloat(document.getElementById('container-height').value) / 100;
+
+            const allItemsToPack = [];
+            const colors = ['#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4', '#ffeaa7', '#dda0dd'];
+            let colorIndex = 0;
+            if (!selectedOrder.items || selectedOrder.items.length === 0) {
+                detailsPanel.innerHTML = '<h2>Detalhes e Relatórios</h2><p style="color: orange;">O pedido selecionado não contém itens para simulação.</p>';
+                optimizeButton.disabled = false;
+                optimizeButton.innerHTML = '<i class="fas fa-magic"></i> Otimizar Carga';
+                return;
+            }
+            selectedOrder.items.forEach(orderItem => {
+                const length = parseFloat(orderItem.Length), width = parseFloat(orderItem.Width), height = parseFloat(orderItem.Height);
+                const unitWeight = parseFloat(orderItem.Weight), amount = parseInt(orderItem.Amount, 10);
+                if (isNaN(length) || isNaN(width) || isNaN(height) || isNaN(unitWeight) || isNaN(amount) || length <= 0 || width <= 0 || height <= 0) {
+                    console.warn(`Item '${orderItem.Name}' ignorado por ter dados inválidos.`); return;
+                }
+                for (let i = 0; i < amount; i++) {
+                    allItemsToPack.push({
+                        id: orderItem['Item ID'], instanceId: `${orderItem['Item ID']}_${i}`, name: orderItem.Name,
+                        shape: (orderItem.Shape || 'box').toLowerCase(), length: length / 100, width: width / 100, height: height / 100,
+                        weight: unitWeight, placed: false, color: colors[colorIndex % colors.length]
+                    });
+                }
+                colorIndex++;
+            });
+
+            const { packedItemsList, unplacedReport } = await packItemsFFDAlgorithm(cL, cW, cH, allItemsToPack);
+
+            const totalItems = allItemsToPack.length;
+            const packedCount = packedItemsList.length;
+            const efficiency = totalItems > 0 ? (packedCount / totalItems * 100).toFixed(1) : 0;
+            let totalPackedVolume = 0;
+            packedItemsList.forEach(item => totalPackedVolume += item.length * item.width * item.height);
+
+            detailsPanel.innerHTML = `
+                <h2>Detalhes e Relatórios</h2><p><strong>Resultado do Empacotamento 3D:</strong></p>
+                <ul>
+                    <li>Itens Empacotados: <strong>${packedCount} de ${totalItems}</strong></li>
+                    <li>Eficiência de Espaço (por contagem): <strong>${efficiency}%</strong></li>
+                    <li>Volume Total dos Itens Empacotados: <strong>${totalPackedVolume.toFixed(3)} m³</strong></li>
+                </ul>
+            `;
+            if (unplacedReport.length > 0) {
+                const consolidatedUnplaced = unplacedReport.reduce((acc, item) => {
+                    acc[item.itemName] = (acc[item.itemName] || 0) + 1; return acc;
+                }, {});
+                detailsPanel.innerHTML += '<h4>Itens Não Empacotados:</h4><ul>';
+                for (const name in consolidatedUnplaced) {
+                    detailsPanel.innerHTML += `<li><strong>${consolidatedUnplaced[name]} x</strong> ${name}</li>`;
+                }
+                detailsPanel.innerHTML += '</ul>';
+            }
+            
+            optimizeButton.disabled = false;
+            optimizeButton.innerHTML = '<i class="fas fa-magic"></i> Otimizar Carga';
+        }
+
+        // --- EVENT LISTENERS ---
+        document.getElementById('order-select').addEventListener('change', (e) => {
+            if (e.target.value) showOrderDetails(e.target.value);
+            else { document.getElementById('order-details').classList.add('d-none'); selectedOrder = null; }
+        });
+        document.getElementById('container-type-select').addEventListener('change', handleContainerChange);
+        document.getElementById('optimizeLoadButton').addEventListener('click', optimizeCargo);
+        ['container-width', 'container-height', 'container-depth'].forEach(id => {
+            document.getElementById(id).addEventListener('change', updateContainerVisual);
+        });
+
+        document.addEventListener('DOMContentLoaded', () => {
+            loadInitialData();
+            initThreeScene();
+        });
+    </script>
+    </body>
+    </html>

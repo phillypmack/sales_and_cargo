@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vasap Design</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+
+        /* Estilos para melhorar o contraste dos controles do carrossel */
+        .carousel-control-prev,
+        .carousel-control-next {
+            /* Cria um círculo semi-transparente como fundo */
+            background-color: rgba(0, 0, 0, 0.5);
+            /* Define um tamanho fixo para o círculo */
+            width: 3rem;
+            height: 3rem;
+            /* Centraliza verticalmente de forma perfeita */
+            top: 50%;
+            transform: translateY(-50%);
+            /* Arredonda para formar um círculo perfeito */
+            border-radius: 50%;
+        }
+
+        /* Ajusta a posição dos botões para não ficarem colados na borda */
+        .carousel-control-prev {
+            left: 1rem;
+        }
+
+        .carousel-control-next {
+            right: 1rem;
+        }
+
+        /* Garante que o ícone SVG branco padrão do Bootstrap se destaque no fundo escuro */
+        .carousel-control-prev-icon,
+        .carousel-control-next-icon {
+            /* Opcional: pode aumentar um pouco o tamanho do ícone se desejar */
+            width: 1.5rem;
+            height: 1.5rem;
+        }
+
+
+        .navbar-brand {
+            background-color: #8BC34A;
+            color: white !important;
+            padding: 8px 16px;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background-color: #f8f9fa;
+            border-top: 1px solid #dee2e6;
+            z-index: 1000;
+        }
+        
+        .bottom-nav .nav-link {
+            text-align: center;
+            padding: 10px 5px;
+            color: #6c757d;
+            text-decoration: none;
+            font-size: 12px;
+        }
+        
+        .bottom-nav .nav-link.active {
+            color: #8BC34A;
+            background-color: rgba(139, 195, 74, 0.1);
+        }
+        
+        .content {
+            padding-bottom: 80px;
+            margin-top: 20px;
+        }
+        
+        .admin-panel {
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        
+        .filter-card {
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+
+        /* Estilos para a visualização em tabela */
+        .table-item-img {
+            width: 60px;
+            height: 60px;
+            object-fit: cover;
+            border-radius: 4px;
+        }
+
+        .quantity-input {
+            max-width: 80px;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-light bg-light">
+        <div class="container-fluid">
+            <span class="navbar-brand">VASAP</span>
+            <div class="d-flex align-items-center">
+                <a href="/profile" id="profile-link" class="text-dark me-3" style="display: none;" title="Meu Perfil">
+                    <i class="fas fa-user-circle fa-lg"></i>
+                </a>
+                <span id="user-info" class="navbar-text me-2" style="display: none;"></span>
+                <button id="logout-btn" class="btn btn-outline-danger me-2" onclick="logout()" style="display: none;">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </button>
+                <button id="login-btn" class="btn btn-outline-success me-2" onclick="showLogin()">
+                    <i class="fas fa-sign-in-alt"></i> Login
+                </button>
+                <button id="logout-btn" class="btn btn-outline-danger me-2" onclick="logout()" style="display: none;">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </button>
+                <span id="user-info" class="navbar-text me-2" style="display: none;"></span>
+                <div class="position-relative">
+                    <span id="cart-count" class="badge bg-danger position-absolute top-0 start-100 translate-middle" style="display: none;">0</span>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid content">
+        <!-- Admin Panel removido -->
+
+        <!-- Items Tab -->
+        <div id="items-tab" class="tab-content active">
+            
+            <!-- Botões de Alternância de Visualização -->
+            <div class="d-flex justify-content-end mb-3">
+                <div class="btn-group" role="group">
+                    <button type="button" id="grid-view-btn" class="btn btn-outline-secondary active" onclick="setView('grid')">
+                        <i class="fas fa-th"></i> Grade
+                    </button>
+                    <button type="button" id="table-view-btn" class="btn btn-outline-secondary" onclick="setView('table')">
+                        <i class="fas fa-list"></i> Tabela
+                    </button>
+                </div>
+            </div>
+
+            <!-- Filtros -->
+            <div class="filter-card">
+                <div class="row g-3 align-items-center">
+                    <!-- Filtro de Busca Principal -->
+                    <div class="col-lg-6">
+                        <input type="text" class="form-control" id="search-input" placeholder="Buscar por código, nome, grupo...">
+                    </div>
+
+                    <!-- Filtro de Categoria -->
+                    <div class="col-lg-4">
+                        <select class="form-select" id="category-filter">
+                            <option value="">Filtrar por grupo...</option>
+                        </select>
+                    </div>
+
+                    <!-- Botão para Filtro de Preço -->
+                    <div class="col-lg-2">
+                        <button class="btn btn-outline-secondary w-100" type="button" data-bs-toggle="collapse" data-bs-target="#priceCollapse" aria-expanded="false" aria-controls="priceCollapse">
+                            <i class="fas fa-dollar-sign"></i> Preço
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Conteúdo Colapsável do Filtro de Preço -->
+                <div class="collapse mt-3" id="priceCollapse">
+                    <div class="card card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <label for="min-price" class="form-label">Preço Mínimo ($)</label>
+                                <input type="number" class="form-control" id="min-price" placeholder="Ex: 50">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="max-price" class="form-label">Preço Máximo ($)</label>
+                                <input type="number" class="form-control" id="max-price" placeholder="Ex: 300">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            <!-- Botões de Ação -->
+                <div class="mt-3">
+                    <button class="btn btn-primary" onclick="applyFilters()">
+                        <i class="fas fa-search"></i> Aplicar Filtros
+                    </button>
+                    <button class="btn btn-link text-secondary" onclick="clearFilters()">
+                        Limpar
+                    </button>
+                </div>
+            </div>   
+            
+            <!-- Visualização em Grade -->
+            <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-6 g-4" id="items-grid-container">
+                <!-- Items will be loaded here in grid view -->
+            </div>
+
+            <!-- Visualização em Tabela -->
+            <div id="items-table-container" style="display: none;">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead>
+                            <tr>
+                                <th style="width: 8%;">Foto</th>
+                                <th style="width: 35%;">Produto</th>
+                                <th style="width: 12%;">ID</th>
+                                <th style="width: 12%;">Preço</th>
+                                <th style="width: 10%;">Estoque</th>
+                                <th style="width: 10%;">Qtd.</th>
+                                <th style="width: 13%;">Ação</th>
+                            </tr>
+                        </thead>
+                        <tbody id="items-table-body">
+                            <!-- Items will be loaded here in table view -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <!-- Paginação -->
+            <div id="pagination-container" class="mt-4">
+                <!-- Pagination will be loaded here -->
+            </div>
+        </div>
+
+        <!-- Cart Tab -->
+        <div id="cart-tab" class="tab-content">
+            <!-- Totais do Carrinho -->
+            <div id="cart-totals" class="mb-4">
+                <!-- Cart totals will be loaded here -->
+            </div>
+            
+            <!-- Itens do Carrinho -->
+            <div id="cart-container">
+                <!-- Cart items will be loaded here -->
+            </div>
+        </div>
+
+        <!-- Orders Tab -->
+        <div id="orders-tab" class="tab-content">
+            <div id="orders-container">
+                <!-- Orders will be loaded here -->
+            </div>
+        </div>
+
+        <!-- Cargo Tab -->
+        <div id="cargo-tab" class="tab-content">
+            <div class="mb-3">
+                <button class="btn btn-primary" onclick="openCargoOptimizer()">
+                    <i class="fas fa-calculator"></i> Abrir Otimizador de Cargas
+                </button>
+            </div>
+            <div id="cargo-container">
+                <!-- Cargo will be loaded here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal da Galeria de Imagens -->
+    <div class="modal fade" id="imageGalleryModal" tabindex="-1">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-body p-0">
+                    <!-- Carrossel de Imagens do Bootstrap -->
+                    <div id="imageCarousel" class="carousel slide" data-bs-ride="carousel" data-bs-wrap="true">
+                        <!-- Indicadores (os pontinhos embaixo) -->
+                        <div class="carousel-indicators" id="carousel-indicators-container">
+                            <!-- Indicadores serão injetados aqui via JS -->
+                        </div>
+                        
+                        <!-- Slides (as imagens) -->
+                        <div class="carousel-inner" id="carousel-inner-container">
+                            <!-- Imagens serão injetadas aqui via JS -->
+                        </div>
+                        
+                        <!-- Controles de Próximo/Anterior -->
+                        <button class="carousel-control-prev" type="button" data-bs-target="#imageCarousel" data-bs-slide="prev">
+                            <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                            <span class="visually-hidden">Previous</span>
+                        </button>
+                        <button class="carousel-control-next" type="button" data-bs-target="#imageCarousel" data-bs-slide="next">
+                            <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                            <span class="visually-hidden">Next</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Autenticação -->
+    <div class="modal fade" id="authModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="authModalTitle">Login</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <!-- Login Form -->
+                    <div id="login-form">
+                        <form onsubmit="handleLogin(event)">
+                            <div class="mb-3">
+                                <label class="form-label">Email:</label>
+                                <input type="email" class="form-control" id="login-email" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Senha:</label>
+                                <input type="password" class="form-control" id="login-password" required>
+                            </div>
+                            <button type="submit" class="btn btn-primary w-100">Entrar</button>
+                        </form>
+                        <div class="text-center mt-3">
+                            <a href="#" onclick="showRegisterForm()">Não tem conta? Cadastre-se</a>
+                        </div>
+                    </div>
+
+                    <!-- Register Form -->
+                    <div id="register-form" style="display: none;">
+                        <form onsubmit="handleRegister(event)">
+                            <div class="mb-3">
+                                <label class="form-label">Seu Nome (Contato)</label>
+                                <input type="text" class="form-control" id="register-name" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Seu E-mail de Acesso</label>
+                                <input type="email" class="form-control" id="register-email" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Crie uma Senha</label>
+                                <input type="password" class="form-control" id="register-password" required minlength="6">
+                            </div>
+                            
+                            <!-- LINK ADICIONADO PARA O CADASTRO DE EMPRESA -->
+                            <div class="alert alert-info small p-2 text-center">
+                                Você é uma empresa? <a href="/register">Clique aqui para o cadastro de parceiro.</a>
+                            </div>
+
+                            <button type="submit" class="btn btn-success w-100">Criar Conta de Acesso</button>
+                        </form>
+                        <div class="text-center mt-3">
+                            <a href="#" onclick="showLoginForm()">Já tem conta? Faça login</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bottom Navigation -->
+    <div class="bottom-nav">
+        <div class="row g-0">
+            <div class="col"><a href="#" class="nav-link active" onclick="showTab('items')"><i class="fas fa-leaf"></i><br>Items</a></div>
+            <div class="col"><a href="#" class="nav-link" onclick="showTab('cart')"><i class="fas fa-shopping-cart"></i><br>Cart<span id="cart-count" ...></span></a></div>
+            <div class="col"><a href="#" class="nav-link" onclick="showTab('orders')"><i class="fas fa-clipboard-list"></i><br>Pedidos</a></div>
+            <div class="col"><a href="#" class="nav-link" onclick="showTab('cargo')"><i class="fas fa-truck"></i><br>Cargo</a></div>
+            <!-- NOVA COLUNA ADICIONADA ABAIXO -->
+            <div class="col" id="admin-nav-link" style="display: none;">
+                <a href="#" class="nav-link" onclick="event.preventDefault(); goToAdminPage();">
+                    <i class="fas fa-cog"></i><br>Admin
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="orderDetailsModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="orderDetailsModalTitle">Detalhes do Pedido</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="orderDetailsModalBody">
+                    <!-- O conteúdo dos detalhes será injetado aqui -->
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>

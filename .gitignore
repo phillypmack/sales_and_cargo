@@ -1,0 +1,67 @@
+# --- Python ---
+# Ignora o diretório do ambiente virtual
+venv/
+.venv/
+env/
+.env/
+
+# Ignora os arquivos de bytecode e cache do Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Ignora arquivos de distribuição e instalação
+*.egg-info/
+dist/
+build/
+*.egg
+
+
+# --- Configuração de IDEs e Editores ---
+# Visual Studio Code
+.vscode/
+
+# PyCharm
+.idea/
+
+# Sublime Text
+*.sublime-*
+
+
+# --- Arquivos de Sistema Operacional ---
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
+desktop.ini
+
+
+# --- Arquivos de Ambiente e Segredos ---
+# IMPORTANTE: Nunca envie suas senhas e chaves de API para o repositório!
+# O arquivo .env contém informações sensíveis.
+.env
+.env.*
+# É uma boa prática ter um arquivo de exemplo para que outros saibam quais
+# variáveis são necessárias. O "!" nega a regra anterior para este arquivo específico.
+!.env.example
+
+
+# --- Arquivos Específicos da Aplicação ---
+# Ignora a pasta de uploads de usuários. O conteúdo dela é dinâmico e não
+# deve fazer parte do código-fonte.
+/static/uploads/
+
+# Ignora arquivos de log que a aplicação possa gerar
+*.log
+logs/
+
+# Ignora bancos de dados locais (se você usar um para testes)
+*.sqlite3
+*.db
+
+
+# --- Dependências de Frontend (se aplicável no futuro) ---
+# Se você decidir usar npm/yarn para gerenciar bibliotecas JS
+node_modules/
