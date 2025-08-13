@@ -99,24 +99,59 @@
 
         // --- FUNÇÕES DE INICIALIZAÇÃO E DADOS (sem alterações) ---
         async function loadInitialData() {
-            if (!authToken) { alert('Autenticação não encontrada.'); return; }
-            try {
-                const [ordersResponse, containersResponse] = await Promise.all([
-                    fetch('/api/pedidos/', { headers: { 'Authorization': `Bearer ${authToken}` } }),
-                    fetch('/cargo-optimizer/api/containers')
-                ]);
-                if (!ordersResponse.ok || !containersResponse.ok) throw new Error('Falha ao carregar dados.');
-                orders = await ordersResponse.json();
-                containerTypes = await containersResponse.json();
-                populateOrderSelect();
-                populateContainerSelect();
-                const urlParams = new URLSearchParams(window.location.search);
-                const orderToSelect = urlParams.get('order');
-                if (orderToSelect) {
-                    document.getElementById('order-select').value = orderToSelect;
-                    showOrderDetails(orderToSelect);
+            if (!authToken) {
+                alert('Autenticação não encontrada. Por favor, faça login na página principal e tente novamente.');
+                return;
+            }
+
+            // --- INÍCIO DA LÓGICA MODIFICADA ---
+            const tempDataJSON = sessionStorage.getItem('cargoOptimizerTempData');
+
+            if (tempDataJSON) {
+                // MODO SIMULAÇÃO DE CARRINHO
+                sessionStorage.removeItem('cargoOptimizerTempData'); // Limpa para não usar de novo
+                
+                const simulationData = JSON.parse(tempDataJSON);
+                selectedOrder = simulationData;
+
+                // Atualiza a UI para o modo de simulação
+                const orderSelect = document.getElementById('order-select');
+                orderSelect.innerHTML = `<option>${simulationData.Order}</option>`;
+                orderSelect.disabled = true;
+                
+                showOrderDetails(simulationData.Order); // Reutiliza a função para mostrar os detalhes
+                
+                // Carrega apenas os tipos de container
+                try {
+                    const containersResponse = await fetch('/cargo-optimizer/api/containers');
+                    if (!containersResponse.ok) throw new Error('Falha ao carregar tipos de container.');
+                    containerTypes = await containersResponse.json();
+                    populateContainerSelect();
+                } catch (error) {
+                    console.error('Erro ao carregar tipos de container:', error);
                 }
-            } catch (error) { console.error('Erro ao carregar dados:', error); }
+
+            } else {
+                // MODO NORMAL (CARREGAR PEDIDOS SALVOS)
+                try {
+                    const [ordersResponse, containersResponse] = await Promise.all([
+                        fetch('/api/pedidos/', { headers: { 'Authorization': `Bearer ${authToken}` } }),
+                        fetch('/cargo-optimizer/api/containers')
+                    ]);
+                    if (!ordersResponse.ok || !containersResponse.ok) throw new Error('Falha ao carregar dados.');
+                    orders = await ordersResponse.json();
+                    containerTypes = await containersResponse.json();
+                    populateOrderSelect();
+                    populateContainerSelect();
+                    const urlParams = new URLSearchParams(window.location.search);
+                    const orderToSelect = urlParams.get('order');
+                    if (orderToSelect) {
+                        document.getElementById('order-select').value = orderToSelect;
+                        showOrderDetails(orderToSelect);
+                    }
+                } catch (error) { console.error('Erro ao carregar dados:', error); }
+            }
+            // --- FIM DA LÓGICA MODIFICADA ---
         }
         function populateOrderSelect() {
             const select = document.getElementById('order-select');
@@ -157,12 +192,17 @@
             }
             updateContainerVisual();
         }
-        function showOrderDetails(orderNumber) {
-            selectedOrder = orders.find(order => order.Order == orderNumber);
+        function showOrderDetails(orderIdentifier) {
+            // Se o array 'orders' tiver dados, busca nele. Senão, usa o 'selectedOrder' que já foi definido.
+            const orderSource = orders.length > 0 ? orders : [selectedOrder];
+            selectedOrder = orderSource.find(order => order.Order == orderIdentifier);
+
             if (!selectedOrder) return;
             const orderDetails = document.getElementById('order-details');
             const orderInfo = document.getElementById('order-info');
-            orderInfo.innerHTML = `<p><strong>Pedido:</strong> #${selectedOrder.Order}</p><p><strong>Peso Total:</strong> ${(selectedOrder['Total weight Kg'] || 0).toFixed(2)} kg</p>`;
+            // Usa o peso total do objeto, que pode ser 'Total weight Kg' ou 'Total wheight Kg'
+            const totalWeight = selectedOrder['Total weight Kg'] || selectedOrder['Total wheight Kg'] || 0;
+            orderInfo.innerHTML = `<p><strong>Pedido:</strong> #${selectedOrder.Order}</p><p><strong>Peso Total:</strong> ${totalWeight.toFixed(2)} kg</p>`;
             orderDetails.classList.remove('d-none');
         }
 
