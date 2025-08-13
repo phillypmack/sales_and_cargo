@@ -698,7 +698,7 @@ function displayCartTotals(totals) {
                 <div class="row">
                     <div class="col-md-6">
                         <p><strong>Total de Itens:</strong> ${totals.total_items}</p>
-                        <p><strong>Valor Total:</strong> $ ${totals.total_value.toFixed(2)}</p>
+                        <p><strong>Valor Total:</strong> $${totals.total_value.toFixed(2)}</p>
                     </div>
                     <div class="col-md-6">
                         <p><strong>Peso Total:</strong> ${totals.total_weight.toFixed(2)} kg</p>
@@ -707,7 +707,15 @@ function displayCartTotals(totals) {
                 </div>
                 <div class="mt-3 d-flex justify-content-between">
                     <button class="btn btn-outline-danger" onclick="clearCart()"><i class="fas fa-trash"></i> Limpar Carrinho</button>
-                    <button class="btn btn-success btn-lg" onclick="placeOrder()"><i class="fas fa-check"></i> Finalizar Pedido</button>
+                    <div>
+                        <!-- BOTÃO NOVO ADICIONADO AQUI -->
+                        <button class="btn btn-outline-success me-2" onclick="simulateCartLoading()">
+                            <i class="fas fa-cube"></i> Simular Carregamento
+                        </button>
+                        <button class="btn btn-success btn-lg" onclick="placeOrder()">
+                            <i class="fas fa-check"></i> Finalizar Pedido
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>`;
@@ -1446,5 +1454,12 @@ function exportItems() {
     });
 }
 
-
+function simulateCartLoading() {
+    if (cart.length === 0) {
+        showAlert('Seu carrinho está vazio. Adicione itens para simular.', 'warning');
+        return;
+    }
+    // Abre o otimizador em uma nova aba com um parâmetro especial
+    window.open('/cargo-optimizer?simulate=cart', '_blank');
+}
 // Adicione outras funções de admin aqui conforme necessário...

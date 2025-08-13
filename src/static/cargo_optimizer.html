@@ -35,9 +35,12 @@
                 <div class="card">
                     <div class="card-header"><h5><i class="fas fa-box"></i> Configurações</h5></div>
                     <div class="card-body">
-                        <div class="mb-3">
-                            <label class="form-label">Selecionar Pedido</label>
-                            <select class="form-select" id="order-select"><option value="">Carregando...</option></select>
+                        <div id="order-selection-section">
+                            <div class="mb-3">
+                                <label class="form-label">Selecionar Pedido</label>
+                                <select class="form-select" id="order-select"><option value="">Carregando...</option></select>
+                            </div>
+                            <div id="order-details" class="d-none"><h6>Detalhes do Pedido:</h6><div id="order-info"></div></div>
                         </div>
                         <div id="order-details" class="d-none"><h6>Detalhes do Pedido:</h6><div id="order-info"></div></div>
                         <hr>
@@ -100,23 +103,62 @@
         // --- FUNÇÕES DE INICIALIZAÇÃO E DADOS (sem alterações) ---
         async function loadInitialData() {
             if (!authToken) { alert('Autenticação não encontrada.'); return; }
+
+            const urlParams = new URLSearchParams(window.location.search);
+            const simulateMode = urlParams.get('simulate');
+            const orderToSelect = urlParams.get('order');
+
+            const orderSelectionSection = document.getElementById('order-selection-section');
+            const configTitle = document.querySelector('#config-card-header'); // Adicione um id="config-card-header" ao seu card-header
+
             try {
-                const [ordersResponse, containersResponse] = await Promise.all([
-                    fetch('/api/pedidos/', { headers: { 'Authorization': `Bearer ${authToken}` } }),
-                    fetch('/cargo-optimizer/api/containers')
-                ]);
-                if (!ordersResponse.ok || !containersResponse.ok) throw new Error('Falha ao carregar dados.');
-                orders = await ordersResponse.json();
+                // Carrega os tipos de container em todos os cenários
+                const containersResponse = await fetch('/cargo-optimizer/api/containers');
+                if (!containersResponse.ok) throw new Error('Falha ao carregar tipos de container.');
                 containerTypes = await containersResponse.json();
-                populateOrderSelect();
                 populateContainerSelect();
-                const urlParams = new URLSearchParams(window.location.search);
-                const orderToSelect = urlParams.get('order');
-                if (orderToSelect) {
-                    document.getElementById('order-select').value = orderToSelect;
-                    showOrderDetails(orderToSelect);
+
+                if (simulateMode === 'cart') {
+                    // MODO DE SIMULAÇÃO DO CARRINHO
+                    orderSelectionSection.style.display = 'none'; // Esconde a seleção de pedido
+                    if(configTitle) configTitle.innerHTML = '<i class="fas fa-shopping-cart"></i> Simulação do Carrinho';
+
+                    const cartResponse = await fetch('/api/cart/', { headers: { 'Authorization': `Bearer ${authToken}` } });
+                    if (!cartResponse.ok) throw new Error('Falha ao carregar dados do carrinho.');
+                    const cartItems = await cartResponse.json();
+
+                    if (cartItems.length === 0) {
+                        alert("Seu carrinho está vazio. Não há nada para simular.");
+                        return;
+                    }
+
+                    // Cria um "pseudo-pedido" a partir dos dados do carrinho
+                    selectedOrder = {
+                        Order: "Carrinho Atual",
+                        items: cartItems,
+                        'Total weight Kg': cartItems.reduce((sum, item) => sum + (parseFloat(item.Weight || 0) * item.Amount), 0)
+                    };
+                    showOrderDetails(null); // Mostra os detalhes do pseudo-pedido
+
+                } else {
+                    // MODO PADRÃO DE OTIMIZAÇÃO DE PEDIDO
+                    orderSelectionSection.style.display = 'block';
+                    if(configTitle) configTitle.innerHTML = '<i class="fas fa-box"></i> Configurações';
+
+                    const ordersResponse = await fetch('/api/pedidos/', { headers: { 'Authorization': `Bearer ${authToken}` } });
+                    if (!ordersResponse.ok) throw new Error('Falha ao carregar pedidos.');
+                    orders = await ordersResponse.json();
+                    populateOrderSelect();
+                    
+                    if (orderToSelect) {
+                        document.getElementById('order-select').value = orderToSelect;
+                        showOrderDetails(orderToSelect);
+                    }
                 }
-            } catch (error) { console.error('Erro ao carregar dados:', error); }
+            } catch (error) {
+                console.error('Erro ao carregar dados:', error);
+                alert('Ocorreu um erro ao carregar os dados da página.');
+            }
         }
         function populateOrderSelect() {
             const select = document.getElementById('order-select');
@@ -158,11 +200,18 @@
             updateContainerVisual();
         }
         function showOrderDetails(orderNumber) {
-            selectedOrder = orders.find(order => order.Order == orderNumber);
+            // Se não for passado um orderNumber, usa o selectedOrder que já foi definido (para o carrinho)
+            if (!orderNumber) {
+                if (!selectedOrder) return;
+            } else {
+                selectedOrder = orders.find(order => order.Order == orderNumber);
+            }
+            
             if (!selectedOrder) return;
             const orderDetails = document.getElementById('order-details');
             const orderInfo = document.getElementById('order-info');
-            orderInfo.innerHTML = `<p><strong>Pedido:</strong> #${selectedOrder.Order}</p><p><strong>Peso Total:</strong> ${(selectedOrder['Total weight Kg'] || 0).toFixed(2)} kg</p>`;
+            const title = selectedOrder.Order === "Carrinho Atual" ? "Resumo do Carrinho" : `Pedido #${selectedOrder.Order}`;
+            orderInfo.innerHTML = `<p><strong>${title}</strong></p><p><strong>Peso Total:</strong> ${(selectedOrder['Total weight Kg'] || 0).toFixed(2)} kg</p>`;
             orderDetails.classList.remove('d-none');
         }
 
