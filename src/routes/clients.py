@@ -37,15 +37,15 @@ def get_client_profile():
 @clients_bp.route("/profile", methods=["POST"])
 @require_auth
 def update_client_profile():
-    """Cria ou atualiza o perfil da empresa para o usuário logado."""
+    """Cria ou atualiza o perfil da empresa e sincroniza com o Sankhya."""
     user_id = request.current_user["user_id"]
     clients_collection = get_clients_collection()
     
     try:
         form_data = request.form
         client_data = {
+            "user_id": ObjectId(user_id),
             "legal_name": form_data.get("legal_name"),
-            # ... (copie a mesma estrutura de dados da função register_client) ...
             "trade_name": form_data.get("trade_name"),
             "address": {
                 "street": form_data.get("street"),
@@ -68,9 +68,10 @@ def update_client_profile():
             "last_updated": datetime.now().isoformat()
         }
 
-        # Busca o perfil existente para não sobrescrever os documentos
         existing_profile = clients_collection.find_one({"user_id": ObjectId(user_id)})
         documents = existing_profile.get("documents", {}) if existing_profile else {}
+        if existing_profile and existing_profile.get("sankhya_codparc"):
+            client_data["sankhya_codparc"] = existing_profile.get("sankhya_codparc")
 
         files = request.files
         for key, file in files.items():
@@ -83,14 +84,29 @@ def update_client_profile():
         
         client_data["documents"] = documents
 
-        # Usa update_one com upsert=True: atualiza se existir, cria se não existir.
+        # Salva/Atualiza no MongoDB primeiro
         clients_collection.update_one(
             {"user_id": ObjectId(user_id)},
             {"$set": client_data},
             upsert=True
         )
         
-        return jsonify({"message": "Perfil atualizado com sucesso!"})
+        # Agora, tenta sincronizar com o Sankhya
+        try:
+            sankhya_result = sankhya_service.create_or_update_partner(client_data)
+            if sankhya_result.get("success") and sankhya_result.get("codparc"):
+                # Se bem-sucedido, salva o CODPARC de volta no MongoDB
+                clients_collection.update_one(
+                    {"user_id": ObjectId(user_id)},
+                    {"$set": {"sankhya_codparc": sankhya_result["codparc"]}}
+                )
+                return jsonify({"message": "Perfil salvo e sincronizado com o ERP com sucesso!"})
+            else:
+                # O perfil foi salvo localmente, mas a sincronização falhou
+                return jsonify({"message": f"Perfil salvo, mas falha ao sincronizar com o ERP: {sankhya_result.get('error')}"}), 202 # 202 Accepted
+        except Exception as e:
+            # O perfil foi salvo, mas a comunicação com o ERP falhou
+            return jsonify({"message": f"Perfil salvo, mas erro de comunicação com o ERP: {str(e)}"}), 202
 
     except Exception as e:
         print(f"Erro ao atualizar perfil: {e}")

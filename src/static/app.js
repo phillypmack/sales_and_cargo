@@ -767,32 +767,8 @@ function displayOrders() {
     `}).join('');
 }
 
-async function formalizeOrder(orderId) {
-    // --- INÍCIO DA VERIFICAÇÃO APRIMORADA ---
-    try {
-        const profileResponse = await fetch('/api/clients/profile', {
-            headers: { 'Authorization': `Bearer ${authToken}` }
-        });
-
-        // Se o status for 404, significa que o perfil não foi preenchido.
-        if (profileResponse.status === 404) {
-            alert('Você precisa completar o cadastro da sua empresa antes de formalizar um pedido.');
-            window.location.href = '/profile'; // Redireciona para a página de perfil
-            return; // Interrompe a execução
-        }
-
-        // Se o status não for OK (ex: 401, 500), lança um erro.
-        if (!profileResponse.ok) {
-            throw new Error('Não foi possível verificar seu perfil de cliente. Tente fazer login novamente.');
-        }
-        // Se chegou aqui, o perfil existe e a verificação foi bem-sucedida.
-    } catch (error) {
-        showAlert(error.message, 'danger');
-        return; // Interrompe a execução
-    }
-    // --- FIM DA VERIFICAÇÃO APRIMORADA ---
-
-    if (!confirm("Este pedido será enviado para a Vasap, deseja continuar?")) {
+function formalizeOrder(orderId) {
+    if (!confirm("Este pedido será enviado para a Vasap e não poderá ser alterado. Deseja continuar?")) {
         return;
     }
 
@@ -805,20 +781,27 @@ async function formalizeOrder(orderId) {
             'Content-Type': 'application/json'
         }
     })
-    .then(response => {
-        // Esta parte permanece a mesma, pois a rota /formalize sempre retorna JSON.
-        if (!response.ok) {
-            return response.json().then(err => { throw new Error(err.error || 'Erro desconhecido no servidor') });
+    .then(response => response.json().then(data => ({ ok: response.ok, data }))) // Processa JSON sempre
+    .then(({ ok, data }) => {
+        if (!ok) {
+            // Se a API retornou um erro, lança para o catch
+            throw data; 
         }
-        return response.json();
-    })
-    .then(data => {
+        // Se foi sucesso
         showAlert(data.message, 'success');
-        loadOrders();
+        loadOrders(); // Recarrega a lista de pedidos para mostrar o novo status
     })
-    .catch(error => {
-        console.error('Erro ao formalizar pedido:', error);
-        showAlert(`Falha ao formalizar o pedido: ${error.message}`, 'danger');
+    .catch(errorData => {
+        console.error('Erro ao formalizar pedido:', errorData);
+        
+        // Lógica para redirecionar se o cadastro estiver incompleto
+        if (errorData.action === 'redirect_to_profile') {
+            alert('Você precisa completar o cadastro da sua empresa antes de formalizar um pedido.');
+            window.location.href = '/profile';
+        } else {
+            // Mostra outros erros
+            showAlert(`Falha ao formalizar o pedido: ${errorData.error || 'Erro desconhecido'}`, 'danger');
+        }
     });
 }
 
