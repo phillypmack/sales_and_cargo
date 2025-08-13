@@ -87,7 +87,7 @@
         import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
         // --- VARIÁVEIS GLOBAIS ---
-        let orders = [], containerTypes = [], selectedOrder = null;
+         let orders = [], containerTypes = [], selectedOrder = null;
         const authToken = localStorage.getItem('vasap_auth_token');
         const EPSILON_PACK = 0.0001;
 
@@ -160,6 +160,104 @@
                 alert('Ocorreu um erro ao carregar os dados da página.');
             }
         }
+
+        function setupSimulatorWithData(source, title) {
+            const orderSelectionSection = document.getElementById('order-selection-section');
+            const configTitle = document.getElementById('config-card-header');
+
+            orderSelectionSection.style.display = 'none';
+            if(configTitle) configTitle.innerHTML = `<i class="fas fa-cogs"></i> ${title}`;
+
+            selectedOrder = {
+                Order: title,
+                items: source,
+                'Total weight Kg': source.reduce((sum, item) => sum + (parseFloat(item.Weight || 0) * item.Amount), 0)
+            };
+            showOrderDetails(null);
+        }
+
+        // Função que ouve por dados do carrinho vindos da página principal
+        function receiveMessageFromParent(event) {
+            // Adicione uma verificação de origem por segurança em produção
+            // if (event.origin !== "https://seu-dominio.com") return;
+
+            if (event.data && event.data.type === 'vasap-cart-data') {
+                console.log("Dados do carrinho recebidos via postMessage.");
+                const cartItems = event.data.payload;
+                if (cartItems && cartItems.length > 0) {
+                    setupSimulatorWithData(cartItems, "Simulação do Carrinho");
+                }
+            }
+        }
+
+        // Função de carregamento principal, agora mais inteligente
+        async function initializePage() {
+            // Carrega os containers, que são sempre necessários
+            try {
+                const containersResponse = await fetch('/cargo-optimizer/api/containers');
+                if (!containersResponse.ok) throw new Error('Falha ao carregar tipos de container.');
+                containerTypes = await containersResponse.json();
+                populateContainerSelect();
+            } catch (error) {
+                console.error("Erro ao carregar containers:", error);
+            }
+
+            const urlParams = new URLSearchParams(window.location.search);
+            const simulateMode = urlParams.get('simulate');
+            const orderToSelect = urlParams.get('order');
+
+            // CASO 1: Está rodando dentro de um iframe
+            if (window.self !== window.top) {
+                console.log("Otimizador em modo Iframe. Aguardando dados...");
+                window.addEventListener('message', receiveMessageFromParent);
+                window.parent.postMessage({ type: 'vasap-iframe-ready' }, '*');
+                return; // Espera a mensagem, não faz mais nada
+            }
+
+            // Se não está em iframe, continua com a lógica para nova aba/janela
+            if (!authToken) {
+                alert('Autenticação não encontrada. Por favor, faça login novamente.');
+                return;
+            }
+
+            // CASO 2: Simulação do carrinho em uma nova aba
+            if (simulateMode === 'cart') {
+                try {
+                    const cartResponse = await fetch('/api/cart/', { headers: { 'Authorization': `Bearer ${authToken}` } });
+                    if (!cartResponse.ok) throw new Error('Falha ao carregar dados do carrinho.');
+                    const cartItems = await cartResponse.json();
+                    if (cartItems.length === 0) {
+                        alert("Seu carrinho está vazio. Não há nada para simular.");
+                        return;
+                    }
+                    setupSimulatorWithData(cartItems, "Simulação do Carrinho");
+                } catch (error) {
+                    console.error('Erro ao carregar dados do carrinho:', error);
+                }
+            } 
+            // CASO 3: Modo padrão de otimização de pedidos
+            else {
+                const orderSelectionSection = document.getElementById('order-selection-section');
+                const configTitle = document.getElementById('config-card-header');
+                orderSelectionSection.style.display = 'block';
+                if(configTitle) configTitle.innerHTML = '<i class="fas fa-box"></i> Configurações de Pedido';
+
+                try {
+                    const ordersResponse = await fetch('/api/pedidos/', { headers: { 'Authorization': `Bearer ${authToken}` } });
+                    if (!ordersResponse.ok) throw new Error('Falha ao carregar pedidos.');
+                    orders = await ordersResponse.json();
+                    populateOrderSelect();
+                    
+                    if (orderToSelect) {
+                        document.getElementById('order-select').value = orderToSelect;
+                        showOrderDetails(orderToSelect);
+                    }
+                } catch (error) {
+                    console.error('Erro ao carregar pedidos:', error);
+                }
+            }
+        }
+
         function populateOrderSelect() {
             const select = document.getElementById('order-select');
             select.innerHTML = '<option value="">Selecione um pedido...</option>';
@@ -561,7 +659,7 @@
         });
 
         document.addEventListener('DOMContentLoaded', () => {
-            loadInitialData();
+            initializePage(); // Chama a nova função de inicialização
             initThreeScene();
         });
     </script>

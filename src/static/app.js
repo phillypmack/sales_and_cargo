@@ -1462,4 +1462,29 @@ function simulateCartLoading() {
     // Abre o otimizador em uma nova aba com um parâmetro especial
     window.open('/cargo-optimizer?simulate=cart', '_blank');
 }
-// Adicione outras funções de admin aqui conforme necessário...
+function openCartSimulatorIframe() {
+    if (cart.length === 0) {
+        showAlert('Seu carrinho está vazio. Adicione itens para simular.', 'warning');
+        return;
+    }
+
+    const modalElement = document.getElementById('simulatorModal');
+    const iframe = document.getElementById('simulator-iframe');
+    const simulatorModal = new bootstrap.Modal(modalElement);
+
+    // Define o src para começar a carregar a página do otimizador
+    iframe.src = '/cargo-optimizer';
+
+    // Espera o iframe carregar completamente antes de enviar os dados
+    iframe.onload = () => {
+        // Envia os dados do carrinho para o iframe
+        // O '*' como targetOrigin é aceitável para desenvolvimento, mas em produção
+        // você deve usar a origem exata do seu site (ex: 'https://www.suaapp.com')
+        iframe.contentWindow.postMessage({
+            type: 'vasap-cart-data',
+            payload: cart
+        }, '*');
+    };
+
+    simulatorModal.show();
+}
