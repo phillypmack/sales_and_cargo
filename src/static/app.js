@@ -705,15 +705,6 @@ function displayCartTotals(totals) {
                         <p><strong>Cubagem Total:</strong> ${totals.total_volume.toFixed(6)} m³</p>
                     </div>
                 </div>
-<<<<<<< HEAD
-                <div class="mt-3 d-flex justify-content-between flex-wrap gap-2">
-                    <div>
-                        <button class="btn btn-outline-danger" onclick="clearCart()"><i class="fas fa-trash"></i> Limpar</button>
-                        <!-- NOVO BOTÃO DE SIMULAÇÃO ADICIONADO AQUI -->
-                        <button class="btn btn-outline-success" onclick="simulateCartLoading()"><i class="fas fa-cube"></i> Simular Carregamento</button>
-                    </div>
-                    <button class="btn btn-success btn-lg" onclick="placeOrder()"><i class="fas fa-check"></i> Finalizar Pedido</button>
-=======
                 <div class="mt-3 d-flex justify-content-between">
                     <button class="btn btn-outline-danger" onclick="clearCart()"><i class="fas fa-trash"></i> Limpar Carrinho</button>
                     <div>
@@ -725,7 +716,6 @@ function displayCartTotals(totals) {
                             <i class="fas fa-check"></i> Finalizar Pedido
                         </button>
                     </div>
->>>>>>> sales_002
                 </div>
             </div>
         </div>`;
@@ -783,27 +773,6 @@ function displayOrders() {
             </div>
         </div>
     `}).join('');
-}
-
-function simulateCartLoading() {
-    if (cart.length === 0) {
-        showAlert('Seu carrinho está vazio. Adicione itens para simular.', 'warning');
-        return;
-    }
-
-    // Cria um objeto temporário que imita a estrutura de um pedido
-    const simulationData = {
-        Order: "Carrinho Atual", // Um nome para exibição
-        items: cart, // A lista de itens do carrinho
-        // Adiciona totais para exibição, se necessário
-        'Total wheight Kg': cart.reduce((sum, item) => sum + (item['Total weight Kg'] || 0), 0)
-    };
-
-    // Salva os dados na sessão do navegador. Eles estarão disponíveis na próxima aba.
-    sessionStorage.setItem('cargoOptimizerTempData', JSON.stringify(simulationData));
-
-    // Abre o otimizador. Não precisamos passar parâmetros na URL.
-    window.open('/cargo-optimizer', '_blank');
 }
 
 function formalizeOrder(orderId) {

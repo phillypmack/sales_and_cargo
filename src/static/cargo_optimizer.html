@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,11 +8,47 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
-        .stats-card { background: white; border-radius: 8px; padding: 15px; margin: 10px 0; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        .btn-optimize { background-color: #8BC34A; border: none; color: white; padding: 12px 24px; border-radius: 6px; font-weight: bold; }
-        .btn-optimize:hover { background-color: #7CB342; color: white; }
-        #viewport-placeholder { width: 100%; min-height: 500px; background-color: #e0e0e0; border: 1px solid #ccc; position: relative; }
-        #item-tooltip { position: absolute; display: none; padding: 8px; background: rgba(0, 0, 0, 0.8); color: white; border-radius: 4px; pointer-events: none; font-size: 12px; z-index: 100; }
+        .stats-card {
+            background: white;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 10px 0;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .btn-optimize {
+            background-color: #8BC34A;
+            border: none;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 6px;
+            font-weight: bold;
+        }
+
+        .btn-optimize:hover {
+            background-color: #7CB342;
+            color: white;
+        }
+
+        #viewport-placeholder {
+            width: 100%;
+            min-height: 500px;
+            background-color: #e0e0e0;
+            border: 1px solid #ccc;
+            position: relative;
+        }
+
+        #item-tooltip {
+            position: absolute;
+            display: none;
+            padding: 8px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            border-radius: 4px;
+            pointer-events: none;
+            font-size: 12px;
+            z-index: 100;
+        }
     </style>
     <script type="importmap">
         {
@@ -22,32 +59,46 @@
         }
     </script>
 </head>
+
 <body>
     <div class="container-fluid">
         <nav class="navbar navbar-light bg-light mb-4">
             <div class="container-fluid">
                 <span class="navbar-brand"><i class="fas fa-truck"></i> Otimizador de Cargas - Vasap</span>
-                <button class="btn btn-outline-secondary" onclick="window.close()"><i class="fas fa-times"></i> Fechar</button>
+                <button class="btn btn-outline-secondary" onclick="window.close()"><i class="fas fa-times"></i>
+                    Fechar</button>
             </div>
         </nav>
         <div class="row">
             <div class="col-md-4">
                 <div class="card">
-                    <div class="card-header"><h5><i class="fas fa-box"></i> Configurações</h5></div>
+                    <div class="card-header">
+                        <h5><i class="fas fa-box"></i> Configurações</h5>
+                    </div>
                     <div class="card-body">
                         <div id="order-selection-section">
                             <div class="mb-3">
                                 <label class="form-label">Selecionar Pedido</label>
-                                <select class="form-select" id="order-select"><option value="">Carregando...</option></select>
+                                <select class="form-select" id="order-select">
+                                    <option value="">Carregando...</option>
+                                </select>
                             </div>
-                            <div id="order-details" class="d-none"><h6>Detalhes do Pedido:</h6><div id="order-info"></div></div>
+                            <div id="order-details" class="d-none">
+                                <h6>Detalhes do Pedido:</h6>
+                                <div id="order-info"></div>
+                            </div>
                         </div>
-                        <div id="order-details" class="d-none"><h6>Detalhes do Pedido:</h6><div id="order-info"></div></div>
+                        <div id="order-details" class="d-none">
+                            <h6>Detalhes do Pedido:</h6>
+                            <div id="order-info"></div>
+                        </div>
                         <hr>
                         <h6>Configurações do Container:</h6>
                         <div class="mb-3">
                             <label for="container-type-select" class="form-label">Tipo de Container</label>
-                            <select class="form-select" id="container-type-select"><option>Carregando...</option></select>
+                            <select class="form-select" id="container-type-select">
+                                <option>Carregando...</option>
+                            </select>
                         </div>
                         <div class="mb-2">
                             <label class="form-label">Largura (cm):</label>
@@ -61,19 +112,23 @@
                             <label class="form-label">Profundidade (cm):</label>
                             <input type="number" class="form-control" id="container-depth" value="1200">
                         </div>
-                        <button class="btn btn-optimize w-100 mt-3" id="optimizeLoadButton"><i class="fas fa-magic"></i> Otimizar Carga</button>
+                        <button class="btn btn-optimize w-100 mt-3" id="optimizeLoadButton"><i class="fas fa-magic"></i>
+                            Otimizar Carga</button>
                     </div>
                 </div>
             </div>
             <div class="col-md-8">
                 <div class="card">
-                    <div class="card-header"><h5><i class="fas fa-chart-bar"></i> Visualização 3D e Relatório</h5></div>
+                    <div class="card-header">
+                        <h5><i class="fas fa-chart-bar"></i> Visualização 3D e Relatório</h5>
+                    </div>
                     <div class="card-body">
                         <div id="viewport-placeholder"></div>
                         <div id="item-tooltip"></div>
                         <div id="details-panel" class="mt-3">
                             <h2>Detalhes e Relatórios</h2>
-                            <p>A visualização 3D e o resumo do empacotamento aparecerão aqui. Selecione um pedido e clique em "Otimizar Carga".</p>
+                            <p>A visualização 3D e o resumo do empacotamento aparecerão aqui. Selecione um pedido e
+                                clique em "Otimizar Carga".</p>
                         </div>
                     </div>
                 </div>
@@ -87,7 +142,7 @@
         import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
         // --- VARIÁVEIS GLOBAIS ---
-         let orders = [], containerTypes = [], selectedOrder = null;
+        let orders = [], containerTypes = [], selectedOrder = null;
         const authToken = localStorage.getItem('vasap_auth_token');
         const EPSILON_PACK = 0.0001;
 
@@ -102,61 +157,6 @@
 
         // --- FUNÇÕES DE INICIALIZAÇÃO E DADOS (sem alterações) ---
         async function loadInitialData() {
-<<<<<<< HEAD
-            if (!authToken) {
-                alert('Autenticação não encontrada. Por favor, faça login na página principal e tente novamente.');
-                return;
-            }
-
-            // --- INÍCIO DA LÓGICA MODIFICADA ---
-            const tempDataJSON = sessionStorage.getItem('cargoOptimizerTempData');
-
-            if (tempDataJSON) {
-                // MODO SIMULAÇÃO DE CARRINHO
-                sessionStorage.removeItem('cargoOptimizerTempData'); // Limpa para não usar de novo
-                
-                const simulationData = JSON.parse(tempDataJSON);
-                selectedOrder = simulationData;
-
-                // Atualiza a UI para o modo de simulação
-                const orderSelect = document.getElementById('order-select');
-                orderSelect.innerHTML = `<option>${simulationData.Order}</option>`;
-                orderSelect.disabled = true;
-                
-                showOrderDetails(simulationData.Order); // Reutiliza a função para mostrar os detalhes
-                
-                // Carrega apenas os tipos de container
-                try {
-                    const containersResponse = await fetch('/cargo-optimizer/api/containers');
-                    if (!containersResponse.ok) throw new Error('Falha ao carregar tipos de container.');
-                    containerTypes = await containersResponse.json();
-                    populateContainerSelect();
-                } catch (error) {
-                    console.error('Erro ao carregar tipos de container:', error);
-                }
-
-            } else {
-                // MODO NORMAL (CARREGAR PEDIDOS SALVOS)
-                try {
-                    const [ordersResponse, containersResponse] = await Promise.all([
-                        fetch('/api/pedidos/', { headers: { 'Authorization': `Bearer ${authToken}` } }),
-                        fetch('/cargo-optimizer/api/containers')
-                    ]);
-                    if (!ordersResponse.ok || !containersResponse.ok) throw new Error('Falha ao carregar dados.');
-                    orders = await ordersResponse.json();
-                    containerTypes = await containersResponse.json();
-                    populateOrderSelect();
-                    populateContainerSelect();
-                    const urlParams = new URLSearchParams(window.location.search);
-                    const orderToSelect = urlParams.get('order');
-                    if (orderToSelect) {
-                        document.getElementById('order-select').value = orderToSelect;
-                        showOrderDetails(orderToSelect);
-                    }
-                } catch (error) { console.error('Erro ao carregar dados:', error); }
-            }
-            // --- FIM DA LÓGICA MODIFICADA ---
-=======
             if (!authToken) { alert('Autenticação não encontrada.'); return; }
 
             const urlParams = new URLSearchParams(window.location.search);
@@ -176,7 +176,7 @@
                 if (simulateMode === 'cart') {
                     // MODO DE SIMULAÇÃO DO CARRINHO
                     orderSelectionSection.style.display = 'none'; // Esconde a seleção de pedido
-                    if(configTitle) configTitle.innerHTML = '<i class="fas fa-shopping-cart"></i> Simulação do Carrinho';
+                    if (configTitle) configTitle.innerHTML = '<i class="fas fa-shopping-cart"></i> Simulação do Carrinho';
 
                     const cartResponse = await fetch('/api/cart/', { headers: { 'Authorization': `Bearer ${authToken}` } });
                     if (!cartResponse.ok) throw new Error('Falha ao carregar dados do carrinho.');
@@ -187,7 +187,7 @@
                         return;
                     }
 
-                    // Cria um "pseudo-pedido" a partir dos dados do carrinho 
+                    // Cria um "pseudo-pedido" a partir dos dados do carrinho
                     selectedOrder = {
                         Order: "Carrinho Atual",
                         items: cartItems,
@@ -198,13 +198,13 @@
                 } else {
                     // MODO PADRÃO DE OTIMIZAÇÃO DE PEDIDO
                     orderSelectionSection.style.display = 'block';
-                    if(configTitle) configTitle.innerHTML = '<i class="fas fa-box"></i> Configurações';
+                    if (configTitle) configTitle.innerHTML = '<i class="fas fa-box"></i> Configurações';
 
                     const ordersResponse = await fetch('/api/pedidos/', { headers: { 'Authorization': `Bearer ${authToken}` } });
                     if (!ordersResponse.ok) throw new Error('Falha ao carregar pedidos.');
                     orders = await ordersResponse.json();
                     populateOrderSelect();
-                    
+
                     if (orderToSelect) {
                         document.getElementById('order-select').value = orderToSelect;
                         showOrderDetails(orderToSelect);
@@ -214,7 +214,6 @@
                 console.error('Erro ao carregar dados:', error);
                 alert('Ocorreu um erro ao carregar os dados da página.');
             }
->>>>>>> sales_002
         }
 
         function setupSimulatorWithData(source, title) {
@@ -222,7 +221,7 @@
             const configTitle = document.getElementById('config-card-header');
 
             orderSelectionSection.style.display = 'none';
-            if(configTitle) configTitle.innerHTML = `<i class="fas fa-cogs"></i> ${title}`;
+            if (configTitle) configTitle.innerHTML = `<i class="fas fa-cogs"></i> ${title}`;
 
             selectedOrder = {
                 Order: title,
@@ -234,19 +233,16 @@
 
         // Função que ouve por dados do carrinho vindos da página principal
         function receiveMessageFromParent(event) {
-            // Adicione uma verificação de origem por segurança em produção
-            // if (event.origin !== "https://seu-dominio.com") return;
-
             if (event.data && event.data.type === 'vasap-cart-data') {
                 console.log("Dados do carrinho recebidos via postMessage.");
                 const cartItems = event.data.payload;
                 if (cartItems && cartItems.length > 0) {
-                    setupSimulatorWithData(cartItems, "Simulação do Carrinho");
+                    setupSimulatorWithData(cartItems, "Simulação do Carrinho (Iframe)");
                 }
             }
         }
 
-        // Função de carregamento principal, agora mais inteligente   teste
+        // Função de carregamento principal, agora mais inteligente
         async function initializePage() {
             // Carrega os containers, que são sempre necessários
             try {
@@ -290,20 +286,20 @@
                 } catch (error) {
                     console.error('Erro ao carregar dados do carrinho:', error);
                 }
-            } 
+            }
             // CASO 3: Modo padrão de otimização de pedidos
             else {
                 const orderSelectionSection = document.getElementById('order-selection-section');
                 const configTitle = document.getElementById('config-card-header');
                 orderSelectionSection.style.display = 'block';
-                if(configTitle) configTitle.innerHTML = '<i class="fas fa-box"></i> Configurações de Pedido';
+                if (configTitle) configTitle.innerHTML = '<i class="fas fa-box"></i> Configurações de Pedido';
 
                 try {
                     const ordersResponse = await fetch('/api/pedidos/', { headers: { 'Authorization': `Bearer ${authToken}` } });
                     if (!ordersResponse.ok) throw new Error('Falha ao carregar pedidos.');
                     orders = await ordersResponse.json();
                     populateOrderSelect();
-                    
+
                     if (orderToSelect) {
                         document.getElementById('order-select').value = orderToSelect;
                         showOrderDetails(orderToSelect);
@@ -353,19 +349,6 @@
             }
             updateContainerVisual();
         }
-<<<<<<< HEAD
-        function showOrderDetails(orderIdentifier) {
-            // Se o array 'orders' tiver dados, busca nele. Senão, usa o 'selectedOrder' que já foi definido.
-            const orderSource = orders.length > 0 ? orders : [selectedOrder];
-            selectedOrder = orderSource.find(order => order.Order == orderIdentifier);
-
-            if (!selectedOrder) return;
-            const orderDetails = document.getElementById('order-details');
-            const orderInfo = document.getElementById('order-info');
-            // Usa o peso total do objeto, que pode ser 'Total weight Kg' ou 'Total wheight Kg'
-            const totalWeight = selectedOrder['Total weight Kg'] || selectedOrder['Total wheight Kg'] || 0;
-            orderInfo.innerHTML = `<p><strong>Pedido:</strong> #${selectedOrder.Order}</p><p><strong>Peso Total:</strong> ${totalWeight.toFixed(2)} kg</p>`;
-=======
         function showOrderDetails(orderNumber) {
             // Se não for passado um orderNumber, usa o selectedOrder que já foi definido (para o carrinho)
             if (!orderNumber) {
@@ -373,13 +356,12 @@
             } else {
                 selectedOrder = orders.find(order => order.Order == orderNumber);
             }
-            
+
             if (!selectedOrder) return;
             const orderDetails = document.getElementById('order-details');
             const orderInfo = document.getElementById('order-info');
             const title = selectedOrder.Order === "Carrinho Atual" ? "Resumo do Carrinho" : `Pedido #${selectedOrder.Order}`;
             orderInfo.innerHTML = `<p><strong>${title}</strong></p><p><strong>Peso Total:</strong> ${(selectedOrder['Total weight Kg'] || 0).toFixed(2)} kg</p>`;
->>>>>>> sales_002
             orderDetails.classList.remove('d-none');
         }
 
@@ -622,7 +604,7 @@
                     packedItemEdgeMeshes.forEach(e => e.material.opacity = e.userData.parentOriginalId === currentlyHoveredOriginalId ? 1.0 : 0.1);
                 }
                 itemTooltipElement.innerHTML = `${itemData.name}<br>Dims: ${itemData.length.toFixed(2)}x${itemData.width.toFixed(2)}x${itemData.height.toFixed(2)}m`;
-                
+
                 // --- INÍCIO DA CORREÇÃO ---
                 // Usamos pageX e pageY para garantir que o tooltip siga o mouse
                 // mesmo se a página tiver sido rolada.
@@ -651,7 +633,7 @@
             const optimizeButton = document.getElementById('optimizeLoadButton');
             optimizeButton.disabled = true;
             optimizeButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Otimizando...';
-            
+
             const detailsPanel = document.getElementById('details-panel');
             detailsPanel.innerHTML = '<h2>Detalhes e Relatórios</h2><p>Iniciando empacotamento 3D...</p>';
             clearPackedItemsFromScene();
@@ -712,7 +694,7 @@
                 }
                 detailsPanel.innerHTML += '</ul>';
             }
-            
+
             optimizeButton.disabled = false;
             optimizeButton.innerHTML = '<i class="fas fa-magic"></i> Otimizar Carga';
         }
@@ -729,9 +711,10 @@
         });
 
         document.addEventListener('DOMContentLoaded', () => {
-            initializePage(); // Chama a nova função de inicialização
+            initializePage();
             initThreeScene();
         });
     </script>
-    </body>
-    </html>
+</body>
+
+</html>
