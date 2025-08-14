@@ -705,6 +705,7 @@ function displayCartTotals(totals) {
                         <p><strong>Cubagem Total:</strong> ${totals.total_volume.toFixed(6)} m³</p>
                     </div>
                 </div>
+<<<<<<< HEAD
                 <div class="mt-3 d-flex justify-content-between flex-wrap gap-2">
                     <div>
                         <button class="btn btn-outline-danger" onclick="clearCart()"><i class="fas fa-trash"></i> Limpar</button>
@@ -712,6 +713,19 @@ function displayCartTotals(totals) {
                         <button class="btn btn-outline-success" onclick="simulateCartLoading()"><i class="fas fa-cube"></i> Simular Carregamento</button>
                     </div>
                     <button class="btn btn-success btn-lg" onclick="placeOrder()"><i class="fas fa-check"></i> Finalizar Pedido</button>
+=======
+                <div class="mt-3 d-flex justify-content-between">
+                    <button class="btn btn-outline-danger" onclick="clearCart()"><i class="fas fa-trash"></i> Limpar Carrinho</button>
+                    <div>
+                        <!-- BOTÃO NOVO ADICIONADO AQUI -->
+                        <button class="btn btn-outline-success me-2" onclick="simulateCartLoading()">
+                            <i class="fas fa-cube"></i> Simular Carregamento
+                        </button>
+                        <button class="btn btn-success btn-lg" onclick="placeOrder()">
+                            <i class="fas fa-check"></i> Finalizar Pedido
+                        </button>
+                    </div>
+>>>>>>> sales_002
                 </div>
             </div>
         </div>`;
@@ -1471,5 +1485,37 @@ function exportItems() {
     });
 }
 
+function simulateCartLoading() {
+    if (cart.length === 0) {
+        showAlert('Seu carrinho está vazio. Adicione itens para simular.', 'warning');
+        return;
+    }
+    // Abre o otimizador em uma nova aba com um parâmetro especial
+    window.open('/cargo-optimizer?simulate=cart', '_blank');
+}
+function openCartSimulatorIframe() {
+    if (cart.length === 0) {
+        showAlert('Seu carrinho está vazio. Adicione itens para simular.', 'warning');
+        return;
+    }
 
-// Adicione outras funções de admin aqui conforme necessário...
+    const modalElement = document.getElementById('simulatorModal');
+    const iframe = document.getElementById('simulator-iframe');
+    const simulatorModal = new bootstrap.Modal(modalElement);
+
+    // Define o src para começar a carregar a página do otimizador
+    iframe.src = '/cargo-optimizer';
+
+    // Espera o iframe carregar completamente antes de enviar os dados
+    iframe.onload = () => {
+        // Envia os dados do carrinho para o iframe
+        // O '*' como targetOrigin é aceitável para desenvolvimento, mas em produção
+        // você deve usar a origem exata do seu site (ex: 'https://www.suaapp.com')
+        iframe.contentWindow.postMessage({
+            type: 'vasap-cart-data',
+            payload: cart
+        }, '*');
+    };
+
+    simulatorModal.show();
+}
